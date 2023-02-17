@@ -53,7 +53,6 @@ class HWD:
 				for hash_c in cmd_map_system.keys():
 					## cmd_map_system[hash_c] = [pid, cmd]
 					cmd_map_popen[hash_c] = subprocess.Popen(cmd_map_system[hash_c][1], shell=True)
-					cmd_map_popen[hash_c].wait()
 					cmd_map_system[hash_c][0] = cmd_map_popen[hash_c].pid
 				ajs.gracefulDumpJSON(PATH_PSNOW, cmd_map_system)
 				self.log.print(cmd_map_system, level=0)
