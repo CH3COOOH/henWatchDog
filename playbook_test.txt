@@ -1,4 +1,5 @@
 gost -L auto://:10001
 gost -L auto://:10002
+gost -L auto://:10003
 gost -L auto://:10004
-gost -L auto://:10005
+gost -L auto://:10006

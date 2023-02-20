@@ -1,5 +1,6 @@
 {
-	"PATH_CMD": "./playbook_test.txt",
-	"PATH_PSNOW": "/tmp/hwd_ps.json",
-	"check_interval": 30
+	"path_playbook": "./playbook_test.txt",
+	"path_ps": "/tmp/hwd_ps.json",
+	"check_interval": 5,
+	"log_level": 1
 }

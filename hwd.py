@@ -5,12 +5,39 @@ import time
 import os
 import sys
 
-from pslist import PSList
 import azlib.ut as aut
 import azlib.pr as apr
 import azlib.json as ajs
 
 PATH_PSNOW = '/tmp/hwd_ps.json'
+
+def terminateCurrentProcess(pid_map, suicide=False):
+	for p in pid_map.keys():
+		if p == '1':
+			continue
+		elif p == '0':
+			if suicide:
+				try:
+					os.kill(pid_map[p], 9)
+					print('%d (HWD daemon) killed.' % pid_map[p][0])
+				except:
+					print('Unable to kill HWD daemon. Maybe died.')
+		else:
+			try:
+				os.kill(pid_map[p][0], 9)
+				print('%d killed.' % pid_map[p][0])
+			except:
+				print('Unable to kill PID %d. Maybe died.' % pid_map[p][0])
+	return 0
+
+def listCurrentProcess(pid_map):
+	for p in pid_map.keys():
+		if p == '0':
+			print('Daemon PID: %d' % pid_map[p])
+		elif p == '1':
+			print('Current startup hash: %s' % pid_map[p])
+		else:
+			print('%s\t%d\t%s' % (p, pid_map[p][0], pid_map[p][1]))
 
 class HWD:
 	def __init__(self, startup_fname, ps_fname, check_interval, show_log_level=1):
@@ -20,6 +47,7 @@ class HWD:
 		self.hash_startup_file_content = ''
 		self.interval = check_interval
 		self.cmd_map = {}
+		self.pid = os.getpid()
 		## $cmd_map looks like:
 		## {cmd: pid}
 
@@ -45,13 +73,11 @@ class HWD:
 		else:
 			cmd_map_system = reload_[0]
 			self.hash_startup_file_content = reload_[1]
-		self.log.print(os.getpid(), level=0)
-		self.log.print(os.getppid(), level=0)
 
 		for hash_c in cmd_map_system.keys():
 			## cmd_map_system[hash_c] = [pid, cmd]
 			cmd_map_system[hash_c][0] = subprocess.Popen(cmd_map_system[hash_c][1], shell=True).pid
-		cmd_map_system[0] = os.getpid()  ## Key -0 should be the main program PID
+		cmd_map_system[0] = self.pid  ## Key -0 should be the main program PID
 		cmd_map_system[1] = self.hash_startup_file_content  ## Key -1 should be the startup file hash
 		ajs.gracefulDumpJSON(self.ps_fname, cmd_map_system)
 		self.log.print(cmd_map_system, level=0)
@@ -77,11 +103,7 @@ class HWD:
 				## Startup config changed
 				self.log.print('Startup config changed. Terminate current processes.', level=2)
 				l.terminate()
-				for p in cmd_map_previous.keys():
-					if p in ["0", "1"]:
-						continue
-					else:
-						os.kill(cmd_map_previous[p][0], 9)
+				terminateCurrentProcess(cmd_map_previous)
 				self.log.print('Restarting...', level=1)
 				l = multiprocessing.Process(target=self.launch, args=((cmd_map_current, hash_startup_file_content_current),))
 				l.start()
@@ -91,5 +113,23 @@ class HWD:
 
 
 if __name__ == '__main__':
-	h = HWD(sys.argv[1], PATH_PSNOW, 10)
-	h.daemon()
+	s_usage = '''Usage:
+hwd -c <config_fname>
+hwd -t <config_fname>
+hwd -l <config_fname>
+'''
+	av = sys.argv
+	if len(av) == 3:
+		c = ajs.gracefulLoadJSON(av[2])
+		if av[1] == '-c':
+			h = HWD(c["path_playbook"], c["path_ps"], c["check_interval"], c["log_level"])
+			h.daemon()
+		elif av[1] == '-t':
+			terminateCurrentProcess(ajs.gracefulLoadJSON(c["path_ps"]), suicide=True)
+			print('Running processes killed.')
+		elif av[1] == '-l':
+			listCurrentProcess(ajs.gracefulLoadJSON(c["path_ps"]))
+		else:
+			print(s_usage)
+	else:
+		print(s_usage)
