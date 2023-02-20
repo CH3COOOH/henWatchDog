@@ -1,0 +1,5 @@
+{
+	"PATH_CMD": "./playbook_test.txt",
+	"PATH_PSNOW": "/tmp/hwd_ps.json",
+	"check_interval": 30
+}

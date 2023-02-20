@@ -11,15 +11,16 @@ import azlib.pr as apr
 import azlib.json as ajs
 
 PATH_PSNOW = '/tmp/hwd_ps.json'
-PATH_PSLAUNCHER = '/tmp/hwd_launcher'
 
 class HWD:
-	def __init__(self, startup_filename, check_interval, show_log_level=1):
+	def __init__(self, startup_fname, ps_fname, check_interval, show_log_level=1):
 		self.log = apr.Log(show_log_level)
-		self.filename = startup_filename
+		self.startup_fname = startup_fname
+		self.ps_fname = ps_fname
 		self.hash_startup_file_content = ''
 		self.interval = check_interval
 		self.cmd_map = {}
+		self.self_pid = os.getpid()
 		## $cmd_map looks like:
 		## {cmd: pid}
 
@@ -30,7 +31,7 @@ class HWD:
 	def __loadStartupConfig(self):
 		self.log.print('Loading startup config...')
 		cmd_map = {}
-		sCmdList = aut.gracefulRead(self.filename)
+		sCmdList = aut.gracefulRead(self.startup_fname)
 		sCmdList_hash = aut.str2md5(sCmdList)
 		for c in sCmdList.split('\n'):
 			if '#' in c or c == '':
@@ -54,7 +55,8 @@ class HWD:
 					## cmd_map_system[hash_c] = [pid, cmd]
 					cmd_map_popen[hash_c] = subprocess.Popen(cmd_map_system[hash_c][1], shell=True)
 					cmd_map_system[hash_c][0] = cmd_map_popen[hash_c].pid
-				ajs.gracefulDumpJSON(PATH_PSNOW, cmd_map_system)
+				cmd_map_system[0] = self.self_pid
+				ajs.gracefulDumpJSON(self.ps_fname, cmd_map_system)
 				self.log.print(cmd_map_system, level=0)
 			
 			isStartupChanged = False
@@ -72,5 +74,5 @@ class HWD:
 
 
 if __name__ == '__main__':
-	h = HWD(sys.argv[1], 30)
+	h = HWD(sys.argv[1], PATH_PSNOW, 30)
 	h.launch()
