@@ -1,4 +1,4 @@
 gost -L auto://:10001
 gost -L auto://:10002
 gost -L auto://:10004
-python -m SimpleHTTPServer 8088
+gost -L auto://:10005

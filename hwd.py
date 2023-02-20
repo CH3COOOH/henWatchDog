@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-
+import multiprocessing
 import subprocess
 import time
 import os
@@ -20,12 +20,10 @@ class HWD:
 		self.hash_startup_file_content = ''
 		self.interval = check_interval
 		self.cmd_map = {}
-		self.self_pid = os.getpid()
 		## $cmd_map looks like:
 		## {cmd: pid}
 
 	## Internal function
-	## Will update $self.startup_file_content_cache and $self.hash_startup_file_content_cache
 	## [Return]
 	## cmd_map -> dict, {command: pid}
 	def __loadStartupConfig(self):
@@ -40,39 +38,58 @@ class HWD:
 			# [pid, cmd]
 		return cmd_map, sCmdList_hash
 
-	def launch(self):
+	def launch(self, reload_=None):
 		isStartupChanged = True
-		cmd_map_system, self.hash_startup_file_content = self.__loadStartupConfig()
+		if reload_ == None:
+			cmd_map_system, self.hash_startup_file_content = self.__loadStartupConfig()
+		else:
+			cmd_map_system = reload_[0]
+			self.hash_startup_file_content = reload_[1]
 		self.log.print(os.getpid(), level=0)
 		self.log.print(os.getppid(), level=0)
 
+		for hash_c in cmd_map_system.keys():
+			## cmd_map_system[hash_c] = [pid, cmd]
+			cmd_map_system[hash_c][0] = subprocess.Popen(cmd_map_system[hash_c][1], shell=True).pid
+		cmd_map_system[0] = os.getpid()  ## Key -0 should be the main program PID
+		cmd_map_system[1] = self.hash_startup_file_content  ## Key -1 should be the startup file hash
+		ajs.gracefulDumpJSON(self.ps_fname, cmd_map_system)
+		self.log.print(cmd_map_system, level=0)
+
+	def daemon(self):
+		## Use multiprocess in order to prevent zombie process in Linux
+		l = multiprocessing.Process(target=self.launch, args=(None,))
+		l.start()
+		l.join()
+
 		while True:
-			
-			if isStartupChanged:
-				## Run new process list
-				cmd_map_popen = {}
-				for hash_c in cmd_map_system.keys():
-					## cmd_map_system[hash_c] = [pid, cmd]
-					cmd_map_popen[hash_c] = subprocess.Popen(cmd_map_system[hash_c][1], shell=True)
-					cmd_map_system[hash_c][0] = cmd_map_popen[hash_c].pid
-				cmd_map_system[0] = self.self_pid
-				ajs.gracefulDumpJSON(self.ps_fname, cmd_map_system)
-				self.log.print(cmd_map_system, level=0)
-			
-			isStartupChanged = False
 			time.sleep(self.interval)
+			if os.path.exists(self.ps_fname) == False:
+				self.log.print('Unable to launch daemon since PS file does not exist. Waiting for retry...', level=2)
+			else:
+				self.log.print('Daemon started.', level=1)
+				break
 
+		while True:
+			cmd_map_previous = ajs.gracefulLoadJSON(self.ps_fname)
 			cmd_map_current, hash_startup_file_content_current = self.__loadStartupConfig()
+			if hash_startup_file_content_current != cmd_map_previous['1']:
+				## Startup config changed
+				self.log.print('Startup config changed. Terminate current processes.', level=2)
+				l.terminate()
+				for p in cmd_map_previous.keys():
+					if p in ["0", "1"]:
+						continue
+					else:
+						os.kill(cmd_map_previous[p][0], 9)
+				self.log.print('Restarting...', level=1)
+				l = multiprocessing.Process(target=self.launch, args=((cmd_map_current, hash_startup_file_content_current),))
+				l.start()
+				l.join()
 
-			## If config file change detected:
-			if hash_startup_file_content_current != self.hash_startup_file_content:
-				isStartupChanged = True
-				for hash_c in cmd_map_popen.keys():
-					cmd_map_popen[hash_c].kill()
-				cmd_map_system = cmd_map_current.copy()
-				self.hash_startup_file_content = hash_startup_file_content_current
+			time.sleep(self.interval)
 
 
 if __name__ == '__main__':
-	h = HWD(sys.argv[1], PATH_PSNOW, 30)
-	h.launch()
+	h = HWD(sys.argv[1], PATH_PSNOW, 10)
+	h.daemon()
