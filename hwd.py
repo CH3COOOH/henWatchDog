@@ -31,6 +31,7 @@ def terminateCurrentProcess(pid_map, suicide=False):
 	return 0
 
 def listCurrentProcess(pid_map):
+	print('MANAGED BY HWD\n--------')
 	for p in pid_map.keys():
 		if p == '0':
 			print('Daemon PID: %d' % pid_map[p])
@@ -38,6 +39,12 @@ def listCurrentProcess(pid_map):
 			print('Current startup hash: %s' % pid_map[p])
 		else:
 			print('%s\t%d\t%s' % (p, pid_map[p][0], pid_map[p][1]))
+	print('MANAGED BY SYSTEM\n--------')
+	ps_cmd = 'ps'
+	for p in pid_map.keys():
+		ps_cmd += ' %s' % p
+	os.system(ps_cmd)
+	print('\n')
 
 class HWD:
 	def __init__(self, startup_fname, ps_fname, check_interval, show_log_level=1):
