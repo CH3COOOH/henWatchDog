@@ -39,10 +39,10 @@ def listCurrentProcess(pid_map):
 			print('Current startup hash: %s' % pid_map[p])
 		else:
 			print('%s\t%d\t%s' % (p, pid_map[p][0], pid_map[p][1]))
-	print('MANAGED BY SYSTEM\n--------')
+	print('\nMANAGED BY SYSTEM\n--------')
 	ps_cmd = 'ps'
 	for p in pid_map.keys():
-		ps_cmd += ' %s' % p
+		ps_cmd += ' %s' % pid_map[p]
 	os.system(ps_cmd)
 	print('\n')
 
