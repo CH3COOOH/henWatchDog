@@ -49,7 +49,7 @@ def listCurrentProcess(pid_map, diff_only=False):
 	
 	print('LOST HWD CONTROL\n--------')
 	ps_out = ps_out.split('\n')[1:-1]
-	ps_out = list(map(lambda x: int(x.split(' ')[0]), ps_out))
+	ps_out = list(map(lambda x: int(x.strip().split(' ')[0]), ps_out))
 	isLost = False
 	for p in pid_map.keys():
 		if p == '0':
